@@ -1,0 +1,412 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  ADVERTISER
+  MEDIA_OWNER
+  ADMIN
+}
+
+enum RFQStatus {
+  PENDING
+  QUOTED
+  ACCEPTED
+  REJECTED
+  CANCELLED
+}
+
+enum QuoteStatus {
+  DRAFT
+  SENT
+  ACCEPTED
+  REJECTED
+  EXPIRED
+}
+
+enum CampaignStatus {
+  PENDING
+  ACTIVE
+  PAUSED
+  COMPLETED
+  CANCELLED
+}
+
+enum TimeOfDay {
+  MORNING
+  AFTERNOON
+  EVENING
+  ALL_DAY
+}
+
+enum DayType {
+  WEEKDAY
+  WEEKEND
+  HOLIDAY
+  FESTIVE
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+}
+
+enum FilmCategory {
+  NOLLYWOOD
+  HOLLYWOOD
+  BOLLYWOOD
+  ANIMATION
+  DOCUMENTARY
+  OTHER
+}
+
+enum FilmStatus {
+  NOW_SHOWING
+  COMING_SOON
+  ENDED
+}
+
+enum AudienceGender {
+  MALE
+  FEMALE
+  MIXED
+}
+
+enum AudienceAge {
+  CHILDREN
+  TEENS
+  YOUNG_ADULTS
+  ADULTS
+  MIXED
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String
+  email         String    @unique
+  password      String
+  phone         String?
+  role          UserRole  @default(ADVERTISER)
+  company       String?
+  avatar        String?
+  isVerified    Boolean   @default(false)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  rfqs          RFQ[]
+  campaigns     Campaign[]
+  mediaOwner    MediaOwner?
+  payments      Payment[]
+}
+
+model Cinema {
+  id            String    @id @default(cuid())
+  name          String
+  city          String
+  state         String
+  address       String
+  logoUrl       String?
+  imageUrl      String?
+  description   String?
+  isActive      Boolean   @default(true)
+  isApproved    Boolean   @default(false)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  screens       Screen[]
+  rfqItems      RFQItem[]
+  quoteItems    QuoteItem[]
+  bookings      Booking[]
+  filmSchedules FilmSchedule[]
+  audienceLogs  FilmAudienceLog[]
+  mediaOwner    MediaOwner? @relation(fields: [mediaOwnerId], references: [id])
+  mediaOwnerId  String?
+}
+
+model Screen {
+  id              String    @id @default(cuid())
+  cinemaId        String
+  name            String
+  seatingCapacity Int
+  showtimesPerDay Int
+  basePrice       Float
+  screenType      String    @default("STANDARD")
+  isActive        Boolean   @default(true)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  cinema          Cinema              @relation(fields: [cinemaId], references: [id], onDelete: Cascade)
+  occupancyProfiles OccupancyProfile[]
+  bookings        Booking[]
+  filmSchedules   FilmSchedule[]
+}
+
+model OccupancyProfile {
+  id            String    @id @default(cuid())
+  screenId      String
+  timeOfDay     TimeOfDay
+  dayType       DayType
+  occupancyRate Float     // 0.0 to 1.0
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  screen        Screen    @relation(fields: [screenId], references: [id], onDelete: Cascade)
+
+  @@unique([screenId, timeOfDay, dayType])
+}
+
+model RFQ {
+  id              String    @id @default(cuid())
+  userId          String
+  campaignName    String
+  brandName       String
+  contactEmail    String
+  phone           String
+  durationStart   DateTime
+  durationEnd     DateTime
+  targetCities    String[]
+  notes           String?
+  status          RFQStatus @default(PENDING)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  user            User      @relation(fields: [userId], references: [id])
+  items           RFQItem[]
+  quote           Quote?
+  adCreatives     AdCreative[]
+}
+
+model RFQItem {
+  id              String    @id @default(cuid())
+  rfqId           String
+  cinemaId        String
+  slotsRequested  Int
+  preferredTime   TimeOfDay[]
+  notes           String?
+  createdAt       DateTime  @default(now())
+
+  rfq             RFQ       @relation(fields: [rfqId], references: [id], onDelete: Cascade)
+  cinema          Cinema    @relation(fields: [cinemaId], references: [id])
+}
+
+model Quote {
+  id              String      @id @default(cuid())
+  rfqId           String      @unique
+  totalMediaCost  Float
+  agencyFee       Float       // 10% of media cost
+  vatAmount       Float       // 7.5% VAT
+  conversionFee   Float       @default(20000) // ₦20,000 fixed
+  grandTotal      Float
+  validUntil      DateTime?
+  notes           String?
+  status          QuoteStatus @default(DRAFT)
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  rfq             RFQ         @relation(fields: [rfqId], references: [id])
+  items           QuoteItem[]
+  campaign        Campaign?
+  payment         Payment?
+}
+
+model QuoteItem {
+  id              String    @id @default(cuid())
+  quoteId         String
+  cinemaId        String
+  slots           Int
+  pricePerSlot    Float
+  subtotal        Float
+  timeOfDay       TimeOfDay?
+  estimatedImpressions Int  @default(0)
+  createdAt       DateTime  @default(now())
+
+  quote           Quote     @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+  cinema          Cinema    @relation(fields: [cinemaId], references: [id])
+}
+
+model AdCreative {
+  id            String    @id @default(cuid())
+  rfqId         String
+  campaignId    String?
+  fileUrl       String?
+  externalLink  String?
+  fileName      String?
+  fileType      String?
+  fileSize      Int?
+  isApproved    Boolean   @default(false)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  rfq           RFQ       @relation(fields: [rfqId], references: [id])
+  campaign      Campaign? @relation(fields: [campaignId], references: [id])
+}
+
+model Campaign {
+  id              String          @id @default(cuid())
+  userId          String
+  quoteId         String?         @unique
+  name            String
+  status          CampaignStatus  @default(PENDING)
+  startDate       DateTime
+  endDate         DateTime
+  totalImpressions Int            @default(0)
+  totalPlays      Int             @default(0)
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  user            User            @relation(fields: [userId], references: [id])
+  quote           Quote?          @relation(fields: [quoteId], references: [id])
+  bookings        Booking[]
+  adCreatives     AdCreative[]
+  impressionLogs  ImpressionLog[]
+}
+
+model Booking {
+  id            String    @id @default(cuid())
+  campaignId    String
+  screenId      String
+  cinemaId      String
+  startDate     DateTime
+  endDate       DateTime
+  timeSlot      TimeOfDay
+  slotsBooked   Int
+  schedule      Json?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  campaign      Campaign  @relation(fields: [campaignId], references: [id])
+  screen        Screen    @relation(fields: [screenId], references: [id])
+  cinema        Cinema    @relation(fields: [cinemaId], references: [id])
+}
+
+model ImpressionLog {
+  id            String    @id @default(cuid())
+  campaignId    String
+  date          DateTime
+  impressions   Int
+  plays         Int
+  location      String
+  filmId        String?
+  createdAt     DateTime  @default(now())
+
+  campaign      Campaign  @relation(fields: [campaignId], references: [id])
+  film          Film?     @relation(fields: [filmId], references: [id])
+}
+
+model MediaOwner {
+  id            String    @id @default(cuid())
+  userId        String    @unique
+  companyName   String
+  rcNumber      String?
+  isVerified    Boolean   @default(false)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  user          User      @relation(fields: [userId], references: [id])
+  cinemas       Cinema[]
+}
+
+model Payment {
+  id              String        @id @default(cuid())
+  userId          String
+  quoteId         String?       @unique
+  amount          Float
+  reference       String        @unique
+  paystackRef     String?
+  status          PaymentStatus @default(PENDING)
+  paidAt          DateTime?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  user            User          @relation(fields: [userId], references: [id])
+  quote           Quote?        @relation(fields: [quoteId], references: [id])
+}
+
+model Notification {
+  id            String    @id @default(cuid())
+  userId        String
+  title         String
+  message       String
+  type          String    @default("INFO")
+  isRead        Boolean   @default(false)
+  createdAt     DateTime  @default(now())
+}
+
+// ─── FILM FACTOR ─────────────────────────────────────────
+model Film {
+  id              String        @id @default(cuid())
+  title           String
+  category        FilmCategory  @default(NOLLYWOOD)
+  status          FilmStatus    @default(NOW_SHOWING)
+  posterUrl       String?
+  trailerUrl      String?
+  synopsis        String?
+  director        String?
+  cast            String?
+  genre           String?
+  rating          String?       // e.g. "PG", "15", "18"
+  durationMins    Int?
+  // Audience profile admin sets per film
+  audienceGender  AudienceGender @default(MIXED)
+  audienceAge     AudienceAge    @default(MIXED)
+  // Dates
+  releaseDate     DateTime?
+  endDate         DateTime?
+  // Ordering / featured
+  isFeatured      Boolean       @default(false)
+  sortOrder       Int           @default(0)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  schedules       FilmSchedule[]
+  audienceLogs    FilmAudienceLog[]
+  impressionLogs  ImpressionLog[]
+}
+
+model FilmSchedule {
+  id              String    @id @default(cuid())
+  filmId          String
+  screenId        String
+  cinemaId        String
+  weekStartDate   DateTime  // Monday of the week
+  weekEndDate     DateTime  // Sunday of the week
+  showtimesPerDay Int       @default(5)
+  // Which time slots this film runs
+  timeSlots       TimeOfDay[]
+  isActive        Boolean   @default(true)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  film            Film      @relation(fields: [filmId], references: [id], onDelete: Cascade)
+  screen          Screen    @relation(fields: [screenId], references: [id])
+  cinema          Cinema    @relation(fields: [cinemaId], references: [id])
+
+  @@unique([filmId, screenId, weekStartDate])
+}
+
+model FilmAudienceLog {
+  id              String    @id @default(cuid())
+  filmId          String
+  campaignId      String?
+  cinemaId        String
+  date            DateTime
+  attendance      Int       @default(0)
+  // Demographic breakdown (estimated %)
+  malePercent     Float     @default(50)
+  femalePercent   Float     @default(50)
+  under18Percent  Float     @default(0)
+  age18to35       Float     @default(60)
+  age36to50       Float     @default(30)
+  age50plusPercent Float    @default(10)
+  createdAt       DateTime  @default(now())
+
+  film            Film      @relation(fields: [filmId], references: [id])
+  cinema          Cinema    @relation(fields: [cinemaId], references: [id])
+}
