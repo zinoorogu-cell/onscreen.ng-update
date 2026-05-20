@@ -73,8 +73,7 @@ export default function SettingsPage() {
             </div>
             <div>
               <label className="label">Email Address</label>
-              <input className="input-field" value={user?.email || ''} disabled
-                className="input-field opacity-50 cursor-not-allowed" />
+              <input className="input-field opacity-50 cursor-not-allowed" value={user?.email || ''} disabled />
             </div>
             <div>
               <label className="label">Phone Number</label>

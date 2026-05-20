@@ -1,12 +1,12 @@
 'use client'
 
 import Link from 'next/link'
-import { useState } from 'react'
+import { Suspense, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Eye, EyeOff, ArrowRight, Loader2 } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 
-export default function SignupPage() {
+function SignupForm() {
   const searchParams = useSearchParams()
   const defaultRole = searchParams.get('role') || 'ADVERTISER'
 
@@ -145,5 +145,13 @@ export default function SignupPage() {
         <Link href="/login" className="text-brand-400 hover:text-brand-300 font-medium">Sign in</Link>
       </p>
     </div>
+  )
+}
+
+export default function SignupPage() {
+  return (
+    <Suspense fallback={<div className="animate-pulse h-96" />}>
+      <SignupForm />
+    </Suspense>
   )
 }

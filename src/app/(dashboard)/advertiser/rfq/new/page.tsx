@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { Plus, Minus, Upload, Link2, X, ChevronRight, ChevronLeft, Loader2, Film, MapPin, CheckCircle } from 'lucide-react'
+import { Plus, Minus, Upload, Link2, X, ChevronRight, ChevronLeft, Loader2, Film, MapPin, CheckCircle, ArrowRight } from 'lucide-react'
 
 const STEPS = ['Campaign Info', 'Select Cinemas', 'Ad Creative', 'Review & Submit']
 
